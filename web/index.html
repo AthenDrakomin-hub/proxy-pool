@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proxy Pool - 智能代理精选</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; background: #0a0c12; color: #e0e0e0; min-height: 100vh; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .header h1 { font-size: 22px; color: #fff; }
+  .header h1 span { color: #60a5fa; }
+  .stats-bar { display: flex; gap: 16px; font-size: 13px; color: #888; }
+  .stats-bar b { color: #4ade80; }
+  .config-panel { background: #141722; border: 1px solid #1f2333; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+  .config-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px; }
+  .config-group { flex: 1; min-width: 200px; }
+  .config-group label { display: block; font-size: 12px; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .checkbox-item { display: flex; align-items: center; gap: 6px; background: #1a1e2e; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; border: 1px solid transparent; transition: all 0.2s; }
+  .checkbox-item:hover { border-color: #3b82f6; }
+  .checkbox-item input { accent-color: #3b82f6; }
+  .checkbox-item.checked { border-color: #3b82f6; background: #1e2a45; }
+  .radio-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  .radio-item { padding: 6px 14px; background: #1a1e2e; border-radius: 6px; cursor: pointer; font-size: 13px; border: 1px solid transparent; transition: all 0.2s; }
+  .radio-item:hover { border-color: #3b82f6; }
+  .radio-item.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .country-tags { display: flex; flex-wrap: wrap; gap: 6px; min-height: 32px; }
+  .country-tag { display: flex; align-items: center; gap: 4px; background: #1e3a5f; color: #60a5fa; padding: 4px 10px; border-radius: 4px; font-size: 12px; }
+  .country-tag .remove { cursor: pointer; opacity: 0.7; }
+  .country-tag .remove:hover { opacity: 1; }
+  .country-select { display: flex; gap: 6px; align-items: center; }
+  select, input[type="number"] { background: #1a1e2e; border: 1px solid #2a2d3a; color: #e0e0e0; padding: 7px 10px; border-radius: 6px; font-size: 13px; }
+  .search-btn { background: linear-gradient(135deg, #2563eb, #7c3aed); color: #fff; border: none; padding: 10px 28px; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s; }
+  .search-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(37,99,235,0.4); }
+  .search-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .proxy-card { background: #141722; border: 1px solid #1f2333; border-radius: 12px; padding: 16px; position: relative; transition: all 0.3s; }
+  .proxy-card:hover { border-color: #3b82f6; transform: translateY(-2px); }
+  .proxy-card.dead { border-color: #dc2626; background: #1a0d0d; animation: pulse-red 1s infinite; }
+  @keyframes pulse-red { 0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); } 50% { box-shadow: 0 0 0 8px rgba(220,38,38,0); } }
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .card-country { font-size: 20px; }
+  .card-grade { font-size: 22px; font-weight: 800; }
+  .card-ip { font-family: "SF Mono", Monaco, monospace; font-size: 15px; color: #fff; margin-bottom: 2px; word-break: break-all; }
+  .card-protocol { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-bottom: 10px; }
+  .proto-http { background: #1e3a5f; color: #60a5fa; }
+  .proto-https { background: #1e3a5f; color: #38bdf8; }
+  .proto-socks4 { background: #3b1f5e; color: #c084fc; }
+  .proto-socks5 { background: #3b1f5e; color: #e879f9; }
+  .card-score { display: flex; align-items: baseline; gap: 6px; margin-bottom: 8px; }
+  .score-num { font-size: 28px; font-weight: 800; }
+  .score-label { font-size: 11px; color: #888; }
+  .card-meta { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 10px; }
+  .card-meta .latency { color: #4ade80; }
+  .countdown-bar { height: 4px; background: #1f2333; border-radius: 2px; overflow: hidden; margin-bottom: 6px; }
+  .countdown-fill { height: 100%; border-radius: 2px; transition: width 1s linear; }
+  .countdown-text { font-size: 11px; color: #888; display: flex; justify-content: space-between; }
+  .countdown-text .time { font-family: monospace; color: #fbbf24; }
+  .card-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .copy-btn { flex: 1; background: #1a1e2e; border: 1px solid #2a2d3a; color: #e0e0e0; padding: 7px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+  .copy-btn:hover { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .copy-btn.copied { background: #16a34a; border-color: #16a34a; color: #fff; }
+  .status-badge { position: absolute; top: 12px; right: 12px; font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+  .status-alive { background: #166534; color: #4ade80; }
+  .status-dead { background: #7f1d1d; color: #f87171; }
+  .export-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #141722; border: 1px solid #1f2333; border-radius: 12px; padding: 14px 20px; }
+  .export-bar span { font-size: 13px; color: #888; }
+  .export-btn { background: #1a1e2e; border: 1px solid #2a2d3a; color: #e0e0e0; padding: 7px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+  .export-btn:hover { background: #2563eb; border-color: #2563eb; }
+  .refresh-btn { background: #1a1e2e; border: 1px solid #2a2d3a; color: #e0e0e0; padding: 7px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .refresh-btn:hover { background: #7c3aed; border-color: #7c3aed; }
+  .empty-state { text-align: center; padding: 60px 20px; color: #555; }
+  .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state p { font-size: 15px; }
+  .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 1000; }
+  .loading-overlay.show { display: flex; }
+  .loading-box { background: #141722; border: 1px solid #1f2333; border-radius: 12px; padding: 30px 40px; text-align: center; }
+  .spinner { width: 40px; height: 40px; border: 3px solid #1f2333; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-box p { font-size: 14px; color: #888; }
+  .toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; }
+  .toast { padding: 12px 20px; border-radius: 8px; font-size: 13px; animation: slideIn 0.3s ease; max-width: 320px; }
+  .toast-success { background: #166534; color: #4ade80; border: 1px solid #16a34a; }
+  .toast-error { background: #7f1d1d; color: #f87171; border: 1px solid #dc2626; }
+  .toast-warning { background: #713f12; color: #fbbf24; border: 1px solid #d97706; }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🛡️ Proxy Pool <span>智能代理精选</span></h1>
+    <div class="stats-bar" id="statsBar">就绪</div>
+  </div>
+  <div class="config-panel">
+    <div class="config-row">
+      <div class="config-group" style="flex:2;">
+        <label>代理源（可多选）</label>
+        <div class="checkbox-group" id="sourceGroup"></div>
+      </div>
+      <div class="config-group">
+        <label>协议类型</label>
+        <div class="radio-group" id="protocolGroup">
+          <div class="radio-item active" data-proto="">全部</div>
+          <div class="radio-item" data-proto="http">HTTP</div>
+          <div class="radio-item" data-proto="https">HTTPS</div>
+          <div class="radio-item" data-proto="socks5">SOCKS5</div>
+        </div>
+      </div>
+    </div>
+    <div class="config-row">
+      <div class="config-group" style="flex:2;">
+        <label>目标国家（可多选，留空=全部）</label>
+        <div class="country-select">
+          <select id="countrySelect"><option value="">添加国家...</option></select>
+        </div>
+        <div class="country-tags" id="countryTags" style="margin-top:8px;"></div>
+      </div>
+      <div class="config-group">
+        <label>显示数量</label>
+        <input type="number" id="limitInput" value="5" min="1" max="10" style="width:80px;">
+      </div>
+      <div class="config-group" style="display:flex;align-items:flex-end;">
+        <button class="search-btn" id="searchBtn" onclick="doSearch()">🔍 开始搜索</button>
+      </div>
+    </div>
+  </div>
+  <div id="cardsArea">
+    <div class="empty-state">
+      <div class="icon">🎯</div>
+      <p>选择代理源和条件，点击「开始搜索」<br>系统将自动抓取、验证并展示评分最高的代理</p>
+    </div>
+  </div>
+  <div class="export-bar" id="exportBar" style="display:none;">
+    <span>导出当前列表：</span>
+    <button class="export-btn" onclick="exportProxies('txt')">📄 TXT</button>
+    <button class="export-btn" onclick="exportProxies('json')">📊 JSON</button>
+    <button class="export-btn" onclick="exportProxies('csv')">📋 CSV</button>
+    <div style="flex:1;"></div>
+    <button class="refresh-btn" onclick="doSearch()">🔄 重新搜索</button>
+  </div>
+</div>
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <p id="loadingText">正在抓取代理...</p>
+  </div>
+</div>
+<div class="toast-container" id="toastContainer"></div>
+<script>
+const API = '/api';
+let currentProxies = [];
+let selectedCountries = [];
+let selectedSources = [];
+let selectedProtocol = '';
+let healthTimer = null;
+let countdownTimer = null;
+let proxyTTLs = {};
+
+async function init() {
+  await loadMeta();
+  setupEventListeners();
+}
+
+async function loadMeta() {
+  try {
+    const r = await fetch(API + '/meta');
+    const d = await r.json();
+    const sg = document.getElementById('sourceGroup');
+    sg.innerHTML = d.sources.map(s =>
+      `<label class="checkbox-item ${s.enabled ? 'checked' : ''}">
+        <input type="checkbox" value="${s.name}" ${s.enabled ? 'checked' : ''} onchange="toggleSource(this)">
+        ${s.name.replace('github_','').replace('proxy_free','PF').replace('dinoz0rg','Dino')}
+      </label>`
+    ).join('');
+    selectedSources = d.sources.filter(s => s.enabled).map(s => s.name);
+    const cs = document.getElementById('countrySelect');
+    cs.innerHTML = '<option value="">添加国家...</option>' + d.countries.map(c => `<option value="${c}">${c}</option>`).join('');
+  } catch(e) { showToast('加载配置失败', 'error'); }
+}
+
+function setupEventListeners() {
+  document.querySelectorAll('#protocolGroup .radio-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('#protocolGroup .radio-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      selectedProtocol = item.dataset.proto;
+    });
+  });
+  document.getElementById('countrySelect').addEventListener('change', function() {
+    if (this.value && !selectedCountries.includes(this.value)) {
+      selectedCountries.push(this.value);
+      renderCountryTags();
+    }
+    this.value = '';
+  });
+}
+
+function toggleSource(cb) {
+  cb.parentElement.classList.toggle('checked', cb.checked);
+  if (cb.checked) { if (!selectedSources.includes(cb.value)) selectedSources.push(cb.value); }
+  else { selectedSources = selectedSources.filter(s => s !== cb.value); }
+}
+
+function renderCountryTags() {
+  document.getElementById('countryTags').innerHTML = selectedCountries.map(c =>
+    `<span class="country-tag">${c} <span class="remove" onclick="removeCountry('${c}')">✕</span></span>`
+  ).join('');
+}
+
+function removeCountry(c) {
+  selectedCountries = selectedCountries.filter(x => x !== c);
+  renderCountryTags();
+}
+
+async function doSearch() {
+  if (selectedSources.length === 0) { showToast('请至少选择一个代理源', 'warning'); return; }
+  const limit = parseInt(document.getElementById('limitInput').value) || 5;
+  stopMonitoring();
+  showLoading(true, '正在抓取代理源...');
+  try {
+    const r = await fetch(API + '/search', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ sources: selectedSources, countries: selectedCountries, protocol: selectedProtocol || null, limit: limit })
+    });
+    const d = await r.json();
+    showLoading(false);
+    if (d.total === 0) {
+      document.getElementById('cardsArea').innerHTML = `<div class="empty-state"><div class="icon">😕</div><p>${d.message || '没有找到可用代理'}<br>请尝试更换源或国家条件</p></div>`;
+      document.getElementById('exportBar').style.display = 'none';
+      return;
+    }
+    currentProxies = d.items;
+    proxyTTLs = {};
+    currentProxies.forEach(p => { proxyTTLs[p.id] = p.ttl || 300; });
+    renderCards();
+    document.getElementById('exportBar').style.display = 'flex';
+    document.getElementById('statsBar').innerHTML = `测试 <b>${d.tested}</b> 条 | 可用 <b>${d.working}</b> 条 | 展示 Top <b>${d.total}</b>`;
+    showToast(`搜索完成！找到 ${d.total} 个优质代理`, 'success');
+    startMonitoring();
+  } catch(e) {
+    showLoading(false);
+    showToast('搜索失败: ' + e.message, 'error');
+  }
+}
+
+function renderCards() {
+  const area = document.getElementById('cardsArea');
+  area.innerHTML = '<div class="cards-grid">' + currentProxies.map((p, i) => {
+    const gradeColor = {S:'#fbbf24',A:'#4ade80',B:'#60a5fa',C:'#fb923c',D:'#f87171'}[p.grade] || '#888';
+    const ttl = proxyTTLs[p.id] || p.ttl || 300;
+    const ttlPct = Math.min(100, (ttl / (p.ttl || 300)) * 100);
+    return `<div class="proxy-card" id="card-${p.id}" data-index="${i}">
+      <span class="status-badge status-alive" id="status-${p.id}">● 在线</span>
+      <div class="card-header"><div class="card-country">${getFlag(p.country)}</div><div class="card-grade" style="color:${gradeColor}">${p.grade}</div></div>
+      <div class="card-ip">${p.ip}:${p.port}</div>
+      <span class="card-protocol proto-${p.protocol}">${p.protocol.toUpperCase()}</span>
+      <div class="card-score"><span class="score-num" style="color:${gradeColor}">${p.score}</span><span class="score-label">/ 100 分</span></div>
+      <div class="card-meta"><span>延迟 <span class="latency" id="latency-${p.id}">${p.latency ? p.latency.toFixed(2) + 's' : '-'}</span></span><span>${p.country || '未知'}</span></div>
+      <div class="countdown-bar"><div class="countdown-fill" id="ttlbar-${p.id}" style="width:${ttlPct}%;background:${gradeColor};"></div></div>
+      <div class="countdown-text"><span>预计存活</span><span class="time" id="ttl-${p.id}">${formatTime(ttl)}</span></div>
+      <div class="card-actions"><button class="copy-btn" id="copy-${p.id}" onclick="copyProxy(${p.id})">📋 复制</button></div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+function getFlag(country) {
+  if (!country) return '🌐';
+  const codePoints = country.toUpperCase().split('').map(c => 127397 + c.charCodeAt(0));
+  try { return String.fromCodePoint(...codePoints); } catch(e) { return country; }
+}
+
+function formatTime(seconds) {
+  if (seconds <= 0) return '00:00';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function startMonitoring() {
+  countdownTimer = setInterval(() => {
+    currentProxies.forEach(p => {
+      if (proxyTTLs[p.id] > 0) {
+        proxyTTLs[p.id]--;
+        const el = document.getElementById(`ttl-${p.id}`);
+        const bar = document.getElementById(`ttlbar-${p.id}`);
+        if (el) el.textContent = formatTime(proxyTTLs[p.id]);
+        if (bar) bar.style.width = Math.max(0, (proxyTTLs[p.id] / (p.ttl || 300)) * 100) + '%';
+        if (proxyTTLs[p.id] <= 30 && el) { el.style.color = '#f87171'; }
+      }
+    });
+  }, 1000);
+  healthTimer = setInterval(checkAllHealth, 15000);
+}
+
+function stopMonitoring() {
+  if (countdownTimer) clearInterval(countdownTimer);
+  if (healthTimer) clearInterval(healthTimer);
+  countdownTimer = null;
+  healthTimer = null;
+}
+
+async function checkAllHealth() {
+  for (const p of currentProxies) {
+    try {
+      const r = await fetch(API + `/proxy/${p.id}/health`);
+      const d = await r.json();
+      const card = document.getElementById(`card-${p.id}`);
+      const statusEl = document.getElementById(`status-${p.id}`);
+      if (!card) continue;
+      if (d.alive) {
+        card.classList.remove('dead');
+        if (statusEl) { statusEl.textContent = '● 在线'; statusEl.className = 'status-badge status-alive'; }
+        const latEl = document.getElementById(`latency-${p.id}`);
+        if (latEl && d.latency) latEl.textContent = d.latency.toFixed(2) + 's';
+        if (proxyTTLs[p.id] < 60) proxyTTLs[p.id] = Math.min(proxyTTLs[p.id] + 120, p.ttl || 300);
+      } else {
+        card.classList.add('dead');
+        if (statusEl) { statusEl.textContent = '✕ 已失效'; statusEl.className = 'status-badge status-dead'; }
+        showToast(`⚠️ 代理 ${p.ip}:${p.port} 已失效！`, 'error');
+        setTimeout(() => removeDeadProxy(p.id), 3000);
+      }
+    } catch(e) {}
+  }
+}
+
+function removeDeadProxy(id) {
+  currentProxies = currentProxies.filter(p => p.id !== id);
+  delete proxyTTLs[id];
+  if (currentProxies.length === 0) {
+    document.getElementById('cardsArea').innerHTML = `<div class="empty-state"><div class="icon">🔄</div><p>所有代理均已失效<br>请点击「重新搜索」获取新代理</p></div>`;
+  } else { renderCards(); }
+}
+
+async function copyProxy(id) {
+  const p = currentProxies.find(x => x.id === id);
+  if (!p) return;
+  const url = p.proxy_url;
+  try {
+    await navigator.clipboard.writeText(url);
+    const btn = document.getElementById(`copy-${id}`);
+    btn.textContent = '✓ 已复制';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '📋 复制'; btn.classList.remove('copied'); }, 2000);
+    showToast(`已复制: ${url}`, 'success');
+  } catch(e) {
+    const ta = document.createElement('textarea');
+    ta.value = url; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    showToast(`已复制: ${url}`, 'success');
+  }
+}
+
+async function exportProxies(format) {
+  if (currentProxies.length === 0) { showToast('没有可导出的代理', 'warning'); return; }
+  try {
+    const r = await fetch(API + '/export', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ ids: currentProxies.map(p => p.id), format: format })
+    });
+    const content = await r.text();
+    const blob = new Blob([content], {type: r.headers.get('content-type') || 'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `proxies_${new Date().toISOString().slice(0,10)}.${format}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`已导出 ${currentProxies.length} 个代理 (${format.toUpperCase()})`, 'success');
+  } catch(e) { showToast('导出失败: ' + e.message, 'error'); }
+}
+
+function showLoading(show, text) {
+  const overlay = document.getElementById('loadingOverlay');
+  if (show) { overlay.classList.add('show'); document.getElementById('loadingText').textContent = text || '加载中...'; }
+  else { overlay.classList.remove('show'); }
+}
+
+function showToast(msg, type = 'success') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 4000);
+}
+
+init();
+</script>
+</body>
+</html>
