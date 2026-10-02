@@ -1,0 +1,54 @@
+# 代理池配置
+server:
+  host: "0.0.0.0"
+  port: 8090
+
+database:
+  path: "proxy_pool.db"
+
+# 抓取源配置
+sources:
+  geonode:
+    enabled: true
+    limit: 300
+    url: "https://proxylist.geonode.com/api/proxy-list?limit={limit}&page=1&sort_by=lastChecked&sort_type=desc"
+
+  github_proxy_free_http:
+    enabled: true
+    url: "https://raw.githubusercontent.com/proxy-free/free-proxy-list/main/http.txt"
+    protocol: "http"
+    limit: 200
+
+  github_proxy_free_socks5:
+    enabled: true
+    url: "https://raw.githubusercontent.com/proxy-free/free-proxy-list/main/socks5.txt"
+    protocol: "socks5"
+    limit: 200
+
+  github_dinoz0rg_http:
+    enabled: true
+    url: "https://raw.githubusercontent.com/dinoz0rg/proxy-list/main/checked_proxies/http.txt"
+    protocol: "http"
+    limit: 200
+
+  github_dinoz0rg_socks5:
+    enabled: true
+    url: "https://raw.githubusercontent.com/dinoz0rg/proxy-list/main/checked_proxies/socks5.txt"
+    protocol: "socks5"
+    limit: 200
+
+# 验证配置
+checker:
+  timeout: 8            # 单条代理超时(秒)
+  max_workers: 50       # 并发线程数
+  test_url_http: "http://httpbin.org/ip"
+  test_url_https: "https://httpbin.org/ip"
+  # 健康度评分：成功率权重
+  min_success_rate: 0.3  # 低于此成功率标记为 dead
+  max_fail_streak: 5     # 连续失败次数超过则淘汰
+
+# 定时任务
+scheduler:
+  fetch_interval_minutes: 30    # 每30分钟抓取一次
+  check_interval_minutes: 10    # 每10分钟全量验证一次
+  cleanup_interval_hours: 6     # 每6小时清理死代理
